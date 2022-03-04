@@ -2125,6 +2125,165 @@ spec:
                             type: string
                         type: object
                       type: array
+                    verifyResource:
+                      description: VerifyResource is used to verify k8s resource signatures
+                        and mutate them to add a digest
+                      properties:
+                        annotationKeyDomain:
+                          description: default "cosign.sigstore.dev"
+                          type: string
+                        ignoreFields:
+                          items:
+                            properties:
+                              fields:
+                                items:
+                                  type: string
+                                type: array
+                              objects:
+                                items:
+                                  properties:
+                                    group:
+                                      type: string
+                                    kind:
+                                      type: string
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    version:
+                                      type: string
+                                  type: object
+                                type: array
+                            type: object
+                          type: array
+                        inScopeUsers:
+                          items:
+                            properties:
+                              objects:
+                                items:
+                                  properties:
+                                    group:
+                                      type: string
+                                    kind:
+                                      type: string
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    version:
+                                      type: string
+                                  type: object
+                                type: array
+                              users:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          type: array
+                        keyConfigs:
+                          items:
+                            properties:
+                              key:
+                                properties:
+                                  PEM:
+                                    type: string
+                                  name:
+                                    type: string
+                                type: object
+                              keySecret:
+                                properties:
+                                  mount:
+                                    type: boolean
+                                  name:
+                                    type: string
+                                  namespace:
+                                    type: string
+                                type: object
+                            type: object
+                          type: array
+                        maxResourceManifestNum:
+                          description: the maximum number of resource manifests to
+                            be checked against single resource. If empty, use 3 as
+                            default.
+                          type: integer
+                        objectSelector:
+                          items:
+                            properties:
+                              group:
+                                type: string
+                              kind:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                              version:
+                                type: string
+                            type: object
+                          type: array
+                        signatureRef:
+                          properties:
+                            imageRef:
+                              type: string
+                            provenanceResourceRef:
+                              properties:
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              type: object
+                            signatureResourceRef:
+                              properties:
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              type: object
+                          type: object
+                        signers:
+                          items:
+                            type: string
+                          type: array
+                        skipObjects:
+                          items:
+                            properties:
+                              group:
+                                type: string
+                              kind:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                              version:
+                                type: string
+                            type: object
+                          type: array
+                        skipUsers:
+                          items:
+                            properties:
+                              objects:
+                                items:
+                                  properties:
+                                    group:
+                                      type: string
+                                    kind:
+                                      type: string
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    version:
+                                      type: string
+                                  type: object
+                                type: array
+                              users:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          type: array
+                      type: object
                   type: object
                 type: array
               schemaValidation:
@@ -5864,6 +6023,165 @@ spec:
                             type: string
                         type: object
                       type: array
+                    verifyResource:
+                      description: VerifyResource is used to verify k8s resource signatures
+                        and mutate them to add a digest
+                      properties:
+                        annotationKeyDomain:
+                          description: default "cosign.sigstore.dev"
+                          type: string
+                        ignoreFields:
+                          items:
+                            properties:
+                              fields:
+                                items:
+                                  type: string
+                                type: array
+                              objects:
+                                items:
+                                  properties:
+                                    group:
+                                      type: string
+                                    kind:
+                                      type: string
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    version:
+                                      type: string
+                                  type: object
+                                type: array
+                            type: object
+                          type: array
+                        inScopeUsers:
+                          items:
+                            properties:
+                              objects:
+                                items:
+                                  properties:
+                                    group:
+                                      type: string
+                                    kind:
+                                      type: string
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    version:
+                                      type: string
+                                  type: object
+                                type: array
+                              users:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          type: array
+                        keyConfigs:
+                          items:
+                            properties:
+                              key:
+                                properties:
+                                  PEM:
+                                    type: string
+                                  name:
+                                    type: string
+                                type: object
+                              keySecret:
+                                properties:
+                                  mount:
+                                    type: boolean
+                                  name:
+                                    type: string
+                                  namespace:
+                                    type: string
+                                type: object
+                            type: object
+                          type: array
+                        maxResourceManifestNum:
+                          description: the maximum number of resource manifests to
+                            be checked against single resource. If empty, use 3 as
+                            default.
+                          type: integer
+                        objectSelector:
+                          items:
+                            properties:
+                              group:
+                                type: string
+                              kind:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                              version:
+                                type: string
+                            type: object
+                          type: array
+                        signatureRef:
+                          properties:
+                            imageRef:
+                              type: string
+                            provenanceResourceRef:
+                              properties:
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              type: object
+                            signatureResourceRef:
+                              properties:
+                                name:
+                                  type: string
+                                namespace:
+                                  type: string
+                              type: object
+                          type: object
+                        signers:
+                          items:
+                            type: string
+                          type: array
+                        skipObjects:
+                          items:
+                            properties:
+                              group:
+                                type: string
+                              kind:
+                                type: string
+                              name:
+                                type: string
+                              namespace:
+                                type: string
+                              version:
+                                type: string
+                            type: object
+                          type: array
+                        skipUsers:
+                          items:
+                            properties:
+                              objects:
+                                items:
+                                  properties:
+                                    group:
+                                      type: string
+                                    kind:
+                                      type: string
+                                    name:
+                                      type: string
+                                    namespace:
+                                      type: string
+                                    version:
+                                      type: string
+                                  type: object
+                                type: array
+                              users:
+                                items:
+                                  type: string
+                                type: array
+                            type: object
+                          type: array
+                      type: object
                   type: object
                 type: array
               schemaValidation:
@@ -7337,6 +7655,25 @@ rules:
   - watch
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  labels:
+    app.kubernetes.io/component: kyverno
+    app.kubernetes.io/instance: kyverno
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/part-of: kyverno
+    app.kubernetes.io/version: latest
+  name: resource-verify-dry-run
+  namespace: kyverno
+rules:
+- apiGroups:
+  - '*'
+  resources:
+  - '*'
+  verbs:
+  - create
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
   labels:
@@ -7663,6 +8000,26 @@ subjects:
   namespace: kyverno
 ---
 apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  labels:
+    app.kubernetes.io/component: kyverno
+    app.kubernetes.io/instance: kyverno
+    app.kubernetes.io/name: kyverno
+    app.kubernetes.io/part-of: kyverno
+    app.kubernetes.io/version: latest
+  name: resource-verify-dry-run
+  namespace: kyverno
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: resource-verify-dry-run
+subjects:
+- kind: ServiceAccount
+  name: kyverno-service-account
+  namespace: kyverno
+---
+apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
   labels:
@@ -7961,6 +8318,11 @@ spec:
           privileged: false
           readOnlyRootFilesystem: true
           runAsNonRoot: true
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmpfs
+        - mountPath: /.sigstore
+          name: sigstore
       initContainers:
       - env:
         - name: METRICS_CONFIG
@@ -7990,3 +8352,8 @@ spec:
       securityContext:
         runAsNonRoot: true
       serviceAccountName: kyverno-service-account
+      volumes:
+      - emptyDir: {}
+        name: tmpfs
+      - emptyDir: {}
+        name: sigstore
