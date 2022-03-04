@@ -61,6 +61,7 @@ func newPolicyCache(log logr.Logger, pLister kyvernolister.ClusterPolicyLister, 
 		ValidateAudit:   make(map[string]bool),
 		Generate:        make(map[string]bool),
 		VerifyImages:    make(map[string]bool),
+		VerifyResource:  make(map[string]bool),
 	}
 
 	return &policyCache{
@@ -117,6 +118,7 @@ func (m *pMap) add(policy *kyverno.ClusterPolicy) {
 	validateAuditMap := m.nameCacheMap[ValidateAudit]
 	generateMap := m.nameCacheMap[Generate]
 	imageVerifyMap := m.nameCacheMap[VerifyImages]
+	resourceVerifyMap := m.nameCacheMap[VerifyResource]
 
 	var pName = policy.GetName()
 	pSpace := policy.GetNamespace()
@@ -128,15 +130,15 @@ func (m *pMap) add(policy *kyverno.ClusterPolicy) {
 
 		if len(rule.MatchResources.Any) > 0 {
 			for _, rmr := range rule.MatchResources.Any {
-				addCacheHelper(rmr, m, rule, mutateMap, pName, enforcePolicy, validateEnforceMap, validateAuditMap, generateMap, imageVerifyMap)
+				addCacheHelper(rmr, m, rule, mutateMap, pName, enforcePolicy, validateEnforceMap, validateAuditMap, generateMap, imageVerifyMap, resourceVerifyMap)
 			}
 		} else if len(rule.MatchResources.All) > 0 {
 			for _, rmr := range rule.MatchResources.All {
-				addCacheHelper(rmr, m, rule, mutateMap, pName, enforcePolicy, validateEnforceMap, validateAuditMap, generateMap, imageVerifyMap)
+				addCacheHelper(rmr, m, rule, mutateMap, pName, enforcePolicy, validateEnforceMap, validateAuditMap, generateMap, imageVerifyMap, resourceVerifyMap)
 			}
 		} else {
 			r := kyverno.ResourceFilter{UserInfo: rule.MatchResources.UserInfo, ResourceDescription: rule.MatchResources.ResourceDescription}
-			addCacheHelper(r, m, rule, mutateMap, pName, enforcePolicy, validateEnforceMap, validateAuditMap, generateMap, imageVerifyMap)
+			addCacheHelper(r, m, rule, mutateMap, pName, enforcePolicy, validateEnforceMap, validateAuditMap, generateMap, imageVerifyMap, resourceVerifyMap)
 		}
 	}
 
@@ -145,9 +147,10 @@ func (m *pMap) add(policy *kyverno.ClusterPolicy) {
 	m.nameCacheMap[ValidateAudit] = validateAuditMap
 	m.nameCacheMap[Generate] = generateMap
 	m.nameCacheMap[VerifyImages] = imageVerifyMap
+	m.nameCacheMap[VerifyResource] = resourceVerifyMap
 }
 
-func addCacheHelper(rmr kyverno.ResourceFilter, m *pMap, rule kyverno.Rule, mutateMap map[string]bool, pName string, enforcePolicy bool, validateEnforceMap map[string]bool, validateAuditMap map[string]bool, generateMap map[string]bool, imageVerifyMap map[string]bool) {
+func addCacheHelper(rmr kyverno.ResourceFilter, m *pMap, rule kyverno.Rule, mutateMap map[string]bool, pName string, enforcePolicy bool, validateEnforceMap map[string]bool, validateAuditMap map[string]bool, generateMap map[string]bool, imageVerifyMap map[string]bool, resourceVerifyMap map[string]bool) {
 	for _, gvk := range rmr.Kinds {
 		_, k := common.GetKindFromGVK(gvk)
 		kind := strings.Title(k)
@@ -198,6 +201,15 @@ func addCacheHelper(rmr kyverno.ResourceFilter, m *pMap, rule kyverno.Rule, muta
 				imageVerifyMap[kind+"/"+pName] = true
 				imageVerifyMapPolicy := m.kindDataMap[kind][VerifyImages]
 				m.kindDataMap[kind][VerifyImages] = append(imageVerifyMapPolicy, pName)
+			}
+			continue
+		}
+
+		if rule.HasVerifyResource() {
+			if !resourceVerifyMap[kind+"/"+pName] {
+				resourceVerifyMap[kind+"/"+pName] = true
+				resourceVerifyMapPolicy := m.kindDataMap[kind][VerifyResource]
+				m.kindDataMap[kind][VerifyResource] = append(resourceVerifyMapPolicy, pName)
 			}
 			continue
 		}

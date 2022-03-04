@@ -9,6 +9,7 @@ import (
 
 	"github.com/distribution/distribution/reference"
 	"github.com/kyverno/kyverno/pkg/engine/context"
+	shieldconfig "github.com/stolostron/integrity-shield/shield/pkg/config"
 
 	jsonpatch "github.com/evanphx/json-patch/v5"
 	"github.com/jmespath/go-jmespath"
@@ -246,6 +247,12 @@ func Validate(policy *kyverno.ClusterPolicy, client *dclient.Client, mock bool, 
 					if err := validateVerifyImagesRule(i); err != nil {
 						return errors.Wrapf(err, "failed to validate policy %s rule %s", policy.Name, rule.Name)
 					}
+				}
+			}
+
+			if rule.HasVerifyResource() {
+				if err := shieldconfig.ValidateManifestVerifyRule(rule.VerifyResource); err != nil {
+					return errors.Wrapf(err, "failed to validate policy %s rule %s", policy.Name, rule.Name)
 				}
 			}
 		}
@@ -1070,7 +1077,7 @@ func validateUniqueRuleName(p kyverno.ClusterPolicy) (string, error) {
 
 // validateRuleType checks only one type of rule is defined per rule
 func validateRuleType(r kyverno.Rule) error {
-	ruleTypes := []bool{r.HasMutate(), r.HasValidate(), r.HasGenerate(), r.HasVerifyImages()}
+	ruleTypes := []bool{r.HasMutate(), r.HasValidate(), r.HasGenerate(), r.HasVerifyImages(), r.HasVerifyResource()}
 
 	operationCount := func() int {
 		count := 0

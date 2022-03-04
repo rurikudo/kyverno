@@ -14,6 +14,7 @@ import (
 	"github.com/kyverno/kyverno/pkg/engine"
 	"github.com/kyverno/kyverno/pkg/engine/variables"
 	"github.com/kyverno/kyverno/pkg/utils"
+	shieldconfig "github.com/stolostron/integrity-shield/shield/pkg/config"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 )
 
@@ -522,14 +523,15 @@ func generateRulePatches(policy kyverno.ClusterPolicy, controllers string, log l
 // https://github.com/kyverno/kyverno/issues/568
 
 type kyvernoRule struct {
-	Name             string                       `json:"name"`
-	MatchResources   *kyverno.MatchResources      `json:"match"`
-	ExcludeResources *kyverno.ExcludeResources    `json:"exclude,omitempty"`
-	Context          *[]kyverno.ContextEntry      `json:"context,omitempty"`
-	AnyAllConditions *apiextensions.JSON          `json:"preconditions,omitempty"`
-	Mutation         *kyverno.Mutation            `json:"mutate,omitempty"`
-	Validation       *kyverno.Validation          `json:"validate,omitempty"`
-	VerifyImages     []*kyverno.ImageVerification `json:"verifyImages,omitempty" yaml:"verifyImages,omitempty"`
+	Name             string                           `json:"name"`
+	MatchResources   *kyverno.MatchResources          `json:"match"`
+	ExcludeResources *kyverno.ExcludeResources        `json:"exclude,omitempty"`
+	Context          *[]kyverno.ContextEntry          `json:"context,omitempty"`
+	AnyAllConditions *apiextensions.JSON              `json:"preconditions,omitempty"`
+	Mutation         *kyverno.Mutation                `json:"mutate,omitempty"`
+	Validation       *kyverno.Validation              `json:"validate,omitempty"`
+	VerifyImages     []*kyverno.ImageVerification     `json:"verifyImages,omitempty" yaml:"verifyImages,omitempty"`
+	VerifyResource   *shieldconfig.ManifestVerifyRule `json:"verifyResource,omitempty" yaml:"verifyResource,omitempty"`
 }
 
 func generateRuleForControllers(rule kyverno.Rule, controllers string, log logr.Logger) kyvernoRule {
@@ -720,6 +722,14 @@ func generateRuleForControllers(rule kyverno.Rule, controllers string, log logr.
 		}
 
 		controllerRule.VerifyImages = newVerifyImages
+		return *controllerRule
+	}
+
+	if rule.VerifyResource != nil {
+		var newVerifyResource *shieldconfig.ManifestVerifyRule
+		rule.VerifyResource.DeepCopyInto(newVerifyResource)
+
+		controllerRule.VerifyResource = newVerifyResource
 		return *controllerRule
 	}
 

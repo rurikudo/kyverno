@@ -73,6 +73,17 @@ func (p *ClusterPolicy) HasVerifyImages() bool {
 	return false
 }
 
+// HasVerifyResource checks for k8s resource verification rule types
+func (p *ClusterPolicy) HasVerifyResource() bool {
+	for _, rule := range p.Spec.Rules {
+		if rule.HasVerifyResource() {
+			return true
+		}
+	}
+
+	return false
+}
+
 // BackgroundProcessingEnabled checks if background is set to true
 func (p *ClusterPolicy) BackgroundProcessingEnabled() bool {
 	if p.Spec.Background == nil {
@@ -90,6 +101,11 @@ func (r Rule) HasMutate() bool {
 // HasVerifyImages checks for verifyImages rule
 func (r Rule) HasVerifyImages() bool {
 	return r.VerifyImages != nil && !reflect.DeepEqual(r.VerifyImages, ImageVerification{})
+}
+
+// HasVerifyResource checks for verifyResource rule
+func (r Rule) HasVerifyResource() bool {
+	return r.VerifyResource != nil
 }
 
 // HasValidate checks for validate rule

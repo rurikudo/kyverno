@@ -307,8 +307,9 @@ func (ws *WebhookServer) resourceMutation(request *v1beta1.AdmissionRequest) *v1
 	kind := request.Kind.Kind
 	mutatePolicies := ws.pCache.GetPolicies(policycache.Mutate, kind, request.Namespace)
 	verifyImagesPolicies := ws.pCache.GetPolicies(policycache.VerifyImages, kind, request.Namespace)
+	verifyResourcePolicies := ws.pCache.GetPolicies(policycache.VerifyResource, kind, request.Namespace)
 
-	if len(mutatePolicies) == 0 && len(verifyImagesPolicies) == 0 {
+	if len(mutatePolicies) == 0 && len(verifyImagesPolicies) == 0 && len(verifyResourcePolicies) == 0 {
 		logger.V(4).Info("no policies matched admission request")
 		return successResponse(nil)
 	}
@@ -331,6 +332,12 @@ func (ws *WebhookServer) resourceMutation(request *v1beta1.AdmissionRequest) *v1
 	imagePatches, err := ws.applyImageVerifyPolicies(newRequest, policyContext, verifyImagesPolicies, logger)
 	if err != nil {
 		logger.Error(err, "image verification failed")
+		return failureResponse(err.Error())
+	}
+
+	err = ws.applyResourceVerifyPolicies(newRequest, policyContext, verifyResourcePolicies, logger)
+	if err != nil {
+		logger.Error(err, "k8s resource verification failed")
 		return failureResponse(err.Error())
 	}
 
