@@ -58,7 +58,7 @@ require (
 	github.com/blang/semver/v4 v4.0.0
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20220119192733-fe33c00cee21
 	github.com/google/go-containerregistry/pkg/authn/kubernetes v0.0.0-20220125170349-50dfc2733d10
-	github.com/stolostron/integrity-shield/shield v0.0.0-00010101000000-000000000000
+	github.com/stolostron/integrity-shield/shield v0.3.2
 	gopkg.in/inf.v0 v0.9.1
 )
 
@@ -361,4 +361,5 @@ replace (
 	github.com/opencontainers/image-spec => github.com/opencontainers/image-spec v1.0.2
 )
 
+// Please replace with your local integrity-shield path
 replace github.com/stolostron/integrity-shield/shield => ../ocm/integrity-shield-1/shield
