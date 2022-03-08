@@ -1,47 +1,136 @@
 package engine
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/sigstore/k8s-manifest-sigstore/pkg/k8smanifest"
-	mapnode "github.com/sigstore/k8s-manifest-sigstore/pkg/util/mapnode"
+	shieldconfig "github.com/stolostron/integrity-shield/shield/pkg/config"
 	"gotest.tools/assert"
+	"k8s.io/api/admission/v1beta1"
 )
 
 var test_policy = `{}`
 
 var signed_resource = `{
 	"apiVersion": "v1",
-	"kind": "Pod",
-	"metadata": {
-  		"annotations": {
-    		"cosign.sigstore.dev/message": "H4sIAAAAAAAA/wDiAB3/H4sIAAAAAAAA/+zPTUrGMBAG4KxzirlA20l/vtCcwpX7oQ0laCYhGcUfvLtUVHSj8m1E7LN5CXmTYTqJuVtSzMXXGnhrhEqzPQwzop3Gee67nNb2nuK1Ohvi/tm0p7ETfswXxlplxh6tHU4nOyjscZwGBXj+yJ+7qUJFITJF4i96392/7vKefwTlcOlLDYkd3Bp9FXh1cJFWHb3QSkJOAxBzEpKQuDp4fNIATNE74C3wna7ZL3trSSwU2Je6nxoIkba3kjOtGdteA3x++9vrHw6Hw7/1HAAA//830Kk7AAgAAAEAAP//Byxp7uIAAAA=",
-    		"cosign.sigstore.dev/signature": "MEUCIA2LILw5kUfcig/l3bFk8JnW3xWCk3AKSMaiWl6Q2DBqAiEAzOAkJjpLk5w86PD+vy/Wr+hRm6R8/dE37YuDzqIbT9c="
-		},
-		"name": "nginx"
+	"data": {
+		"comment": "comment1",
+		"key1": "val1",
+		"key2": "val2"
 	},
-	"spec": {
-		"containers": [
-			{
-				"image": "nginx:1.14.2",
-				"name": "nginx"
-			}
-		]
+	"kind": "ConfigMap",
+	"metadata": {
+		"annotations": {
+			"cosign.sigstore.dev/message": "H4sIAAAAAAAA/wD8AAP/H4sIAAAAAAAA/+zRu27DIBQGYGaeghdIOVzsNKydu1Vdq9MYW5Y54AKJmjx9leuYsVUlf8vPz2U4Qu4xyz6Fzuci41EqeJ7C19DpGj+BDNFHMGS/LQDAEOWb3Caasy9ljMOqYl4Nx2azMQBGyYI0B7/a0tMBKbC709vW2nOu2+acoC/9RDVrpqyGprXQasPAQKvWTAD7BbtSMTOAPO269OBeqdj3D86vs9zzn8B5fPe5jCk6sVd8GmPnxEuK/Ti84szJV+ywouNCRCTvxP2T+W1/8gflxB6DuhR9LpoLsU1EPlZ3Wyj+1+MuFovF4uonAAD//3weCWIACAAAAQAA//+Nc9ey/AAAAA==",
+			"cosign.sigstore.dev/signature": "MEYCIQCTNFfObr0DiBCbDYEq0clxRw0FeoY35LhEiIFrGU7bZAIhAJR7AEYHIXkCPGlPIXA8ao0L99s3RWAjjzoxwcvOfmeT"
+		},
+		"name": "sample-cm",
+		"namespace": "sample-ns"
 	}
 }`
 
+var signed_adreq = `{
+    "uid": "2529b894-5fca-4df9-a92b-7110f42bfa09",
+    "kind": {
+        "group": "",
+        "version": "v1",
+        "kind": "ConfigMap"
+    },
+    "resource": {
+        "group": "",
+        "version": "v1",
+        "resource": "configmaps"
+    },
+    "requestKind": {
+        "group": "",
+        "version": "v1",
+        "kind": "ConfigMap"
+    },
+    "requestResource": {
+        "group": "",
+        "version": "v1",
+        "resource": "configmaps"
+    },
+    "name": "sample-cm",
+    "namespace": "sample-ns",
+    "operation": "CREATE",
+    "userInfo": {
+        "username": "kubernetes-admin",
+        "groups": [
+            "system:masters",
+            "system:authenticated"
+        ]
+    },
+    "object": {
+        "apiVersion": "v1",
+        "data": {
+            "comment": "comment1",
+            "key1": "val1",
+            "key2": "val2"
+        },
+        "kind": "ConfigMap",
+        "metadata": {
+            "annotations": {
+                "cosign.sigstore.dev/message": "H4sIAAAAAAAA/wD8AAP/H4sIAAAAAAAA/+zRu27DIBQGYGaeghdIOVzsNKydu1Vdq9MYW5Y54AKJmjx9leuYsVUlf8vPz2U4Qu4xyz6Fzuci41EqeJ7C19DpGj+BDNFHMGS/LQDAEOWb3Caasy9ljMOqYl4Nx2azMQBGyYI0B7/a0tMBKbC709vW2nOu2+acoC/9RDVrpqyGprXQasPAQKvWTAD7BbtSMTOAPO269OBeqdj3D86vs9zzn8B5fPe5jCk6sVd8GmPnxEuK/Ti84szJV+ywouNCRCTvxP2T+W1/8gflxB6DuhR9LpoLsU1EPlZ3Wyj+1+MuFovF4uonAAD//3weCWIACAAAAQAA//+Nc9ey/AAAAA==",
+                "cosign.sigstore.dev/signature": "MEYCIQCTNFfObr0DiBCbDYEq0clxRw0FeoY35LhEiIFrGU7bZAIhAJR7AEYHIXkCPGlPIXA8ao0L99s3RWAjjzoxwcvOfmeT"
+            },
+            "creationTimestamp": "2022-03-04T07:43:10Z",
+            "managedFields": [
+                {
+                    "apiVersion": "v1",
+                    "fieldsType": "FieldsV1",
+                    "fieldsV1": {
+                        "f:data": {
+                            ".": {},
+                            "f:comment": {},
+                            "f:key1": {},
+                            "f:key2": {}
+                        },
+                        "f:metadata": {
+                            "f:annotations": {
+                                ".": {},
+                                "f:integrityshield.io/message": {},
+                                "f:integrityshield.io/signature": {}
+                            }
+                        }
+                    },
+                    "manager": "oc",
+                    "operation": "Update",
+                    "time": "2022-03-04T07:43:10Z"
+                }
+            ],
+            "name": "sample-cm",
+            "namespace": "sample-ns",
+            "uid": "44725451-0fd5-47ec-98a1-f53f938e9b4d"
+        }
+    },
+    "oldObject": null,
+    "dryRun": false,
+    "options": {
+        "apiVersion": "meta.k8s.io/v1",
+        "kind": "CreateOptions"
+    }
+}`
+
 const ecdsaPub = `-----BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEtS69SctDWseJdFcQnpJGh3Yq3WfM
-EpLCSBfCcCyTotqkFCsGjhAFiSblvmX8vn51dbnZ7cdtiahat/eehymyJg==
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEyQfmL5YwHbn9xrrgG3vgbU0KJxMY
+BibYLJ5L4VSMvGxeMLnBGdM48w5IE//6idUPj3rscigFdHs7GDMH4LLAng==
 -----END PUBLIC KEY-----`
 
 func Test_VerifyManifest(t *testing.T) {
 	policyContext := buildContext(t, test_policy, signed_resource)
-	var diffVar *mapnode.DiffResult
+	var request *v1beta1.AdmissionRequest
+	_ = json.Unmarshal([]byte(signed_adreq), &request)
+	policyContext.JSONContext.AddRequest(request)
+	policyContext.Policy.Name = "test-policy"
 	ignoreFields := k8smanifest.ObjectFieldBindingList{}
+	skipUsers := shieldconfig.ObjectUserBindingList{}
+	inScopeUsers := shieldconfig.ObjectUserBindingList{}
+	subject := ""
 
-	verified, diff, err := VerifyManifest(policyContext, ecdsaPub, ignoreFields)
+	verified, msg, err := VerifyManifest(policyContext, ecdsaPub, ignoreFields, skipUsers, inScopeUsers, subject)
 	assert.NilError(t, err)
 	assert.Equal(t, verified, true)
-	assert.Equal(t, diff, diffVar)
+	assert.Equal(t, msg, "Singed by a valid signer: ")
 }

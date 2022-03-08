@@ -8,12 +8,9 @@ import (
 	"github.com/ghodss/yaml"
 	"github.com/kyverno/kyverno/pkg/config"
 	"github.com/sigstore/k8s-manifest-sigstore/pkg/k8smanifest"
-	mapnode "github.com/sigstore/k8s-manifest-sigstore/pkg/util/mapnode"
-	log "github.com/sirupsen/logrus"
 	shieldconfig "github.com/stolostron/integrity-shield/shield/pkg/config"
 	"github.com/stolostron/integrity-shield/shield/pkg/shield"
 	"k8s.io/api/admission/v1beta1"
-	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const DefaultAnnotationKeyDomain = "cosign.sigstore.dev/"
@@ -33,72 +30,30 @@ func VerifyManifest(policyContext *PolicyContext, ecdsaPub string, ignoreFields 
 	vo.IgnoreFields = append(vo.IgnoreFields, ignoreFields...)
 	// call ishield:manifest verify
 	mvconfig := shieldconfig.NewManifestVerifyConfig(config.KyvernoNamespace)
-	resourceVerify := &shieldconfig.ManifestVerifyRule{
+	manifestVerifyRule := &shieldconfig.ManifestVerifyRule{
 		VerifyResourceOption: *vo,
+		SkipUsers:            skipUsers,
+		InScopeUsers:         inScopeUsers,
 	}
-	resourceVerify.SkipUsers = skipUsers
-	resourceVerify.InScopeUsers = inScopeUsers
-	resourceVerify.Signers = append(resourceVerify.Signers, subject)
+	manifestVerifyRule.Signers = append(manifestVerifyRule.Signers, subject)
 	key := shieldconfig.KeyConfig{
 		Key: shieldconfig.Key{
 			PEM:  ecdsaPub,
 			Name: policyContext.Policy.Name,
 		},
 	}
-	resourceVerify.KeyConfigs = []shieldconfig.KeyConfig{key}
+	manifestVerifyRule.KeyConfigs = append(manifestVerifyRule.KeyConfigs, key)
 	request, err := policyContext.JSONContext.Query("request")
 	if err != nil {
-		return false, fmt.Sprintf("failed to get a request from policyContext", err.Error()), err
+		return false, fmt.Sprintf("failed to get a request from policyContext: %s", err.Error()), err
 	}
-	reqByte, err := json.Marshal(request)
+	reqByte, _ := json.Marshal(request)
 	var adreq *v1beta1.AdmissionRequest
 	err = json.Unmarshal(reqByte, &adreq)
 	if err != nil {
-		return false, fmt.Sprintf("failed to unmarshal a request from requestByte", err.Error()), err
+		return false, fmt.Sprintf("failed to unmarshal a request from requestByte: %s", err.Error()), err
 	}
-	return shield.VerifyResource(adreq, mvconfig, resourceVerify)
-}
-
-func matchManifest(inputManifestBytes, foundManifestBytes []byte, ignoreFields []string) (bool, *mapnode.DiffResult, error) {
-	log.Debug("manifest:", string(inputManifestBytes))
-	log.Debug("manifest in reference:", string(foundManifestBytes))
-	inputFileNode, err := mapnode.NewFromYamlBytes(inputManifestBytes)
-	if err != nil {
-		return false, nil, err
-	}
-	mask := "metadata.annotations." + DefaultAnnotationKeyDomain
-	annotationMask := []string{
-		mask + "message",
-		mask + "signature",
-		mask + "certificate",
-		mask + "message",
-		mask + "bundle",
-	}
-	maskedInputNode := inputFileNode.Mask(annotationMask)
-
-	var obj unstructured.Unstructured
-	err = yaml.Unmarshal(inputManifestBytes, &obj)
-	if err != nil {
-		return false, nil, err
-	}
-
-	manifestNode, err := mapnode.NewFromYamlBytes(foundManifestBytes)
-	if err != nil {
-		return false, nil, err
-	}
-	maskedManifestNode := manifestNode.Mask(annotationMask)
-	var matched bool
-	diff := maskedInputNode.Diff(maskedManifestNode)
-
-	// filter out ignoreFields
-	if diff != nil && len(ignoreFields) > 0 {
-		_, diff, _ = diff.Filter(ignoreFields)
-	}
-	if diff == nil || diff.Size() == 0 {
-		matched = true
-		diff = nil
-	}
-	return matched, diff, nil
+	return shield.VerifyResource(adreq, mvconfig, manifestVerifyRule)
 }
 
 func addConfig(vo, defaultConfig *k8smanifest.VerifyResourceOption) *k8smanifest.VerifyResourceOption {
