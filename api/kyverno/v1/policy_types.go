@@ -477,8 +477,13 @@ type Validation struct {
 	// +optional
 	IgnoreFields k8smanifest.ObjectFieldBindingList `json:"ignoreFields,omitempty" yaml:"ignoreFields,omitempty"`
 
-	SkipUsers    shieldconfig.ObjectUserBindingList `json:"skipUsers,omitempty"`
-	InScopeUsers shieldconfig.ObjectUserBindingList `json:"inScopeUsers,omitempty"`
+	// SkipUsers is a list of ServiceAccounts. Admission request from SkipUsers is allowed without signature.
+	// +optional
+	SkipUsers shieldconfig.ObjectUserBindingList `json:"skipUsers,omitempty" yaml:"skipUsers,omitempty"`
+
+	// Admission request from InScopeUsers is forcibly validated.
+	// +optional
+	InScopeUsers shieldconfig.ObjectUserBindingList `json:"inScopeUsers,omitempty" yaml:"inScopeUsers,omitempty"`
 
 	// Subject is the verified identity, for example the email address
 	Subject string `json:"subject,omitempty" yaml:"subject,omitempty"`
