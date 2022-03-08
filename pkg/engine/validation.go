@@ -19,6 +19,7 @@ import (
 	"github.com/kyverno/kyverno/pkg/engine/utils"
 	"github.com/kyverno/kyverno/pkg/engine/validate"
 	"github.com/kyverno/kyverno/pkg/engine/variables"
+	shieldconfig "github.com/stolostron/integrity-shield/shield/pkg/config"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -162,6 +163,9 @@ type validator struct {
 	deny             *kyverno.Deny
 	key              string
 	ignoreFields     k8smanifest.ObjectFieldBindingList
+	skipUsers        shieldconfig.ObjectUserBindingList
+	inScopeUsers     shieldconfig.ObjectUserBindingList
+	subject          string
 }
 
 func newValidator(log logr.Logger, ctx *PolicyContext, rule *kyverno.Rule) *validator {
@@ -177,6 +181,9 @@ func newValidator(log logr.Logger, ctx *PolicyContext, rule *kyverno.Rule) *vali
 		deny:             ruleCopy.Validation.Deny,
 		key:              ruleCopy.Validation.Key,
 		ignoreFields:     ruleCopy.Validation.IgnoreFields,
+		skipUsers:        ruleCopy.Validation.SkipUsers,
+		inScopeUsers:     ruleCopy.Validation.InScopeUsers,
+		subject:          ruleCopy.Validation.Subject,
 	}
 }
 
@@ -387,15 +394,15 @@ func (v *validator) validateDeny() *response.RuleResponse {
 
 func (v *validator) validateKey() *response.RuleResponse {
 	operation, err := v.ctx.JSONContext.Query("request.operation")
-	// there is no need to check image signatures during a delete request.
+	// there is no need to check manifest signatures during a delete request.
 	if err == nil && operation != "DELETE" {
-		verified, diff, err := VerifyManifest(v.ctx, v.key, v.ignoreFields)
+		verified, reason, err := VerifyManifest(v.ctx, v.key, v.ignoreFields, v.skipUsers, v.inScopeUsers, v.subject)
 		if err != nil {
 			return ruleError(v.rule, utils.Validation, "manifest verification failed", err)
 		}
 		if !verified {
-			v.log.Info("invalid request ", "verified: ", verified, "diff: ", diff)
-			return ruleResponse(v.rule, utils.Validation, "manifest mismatch: diff: "+diff.String(), response.RuleStatusFail)
+			v.log.Info("invalid request ", "verified: ", verified, "reason: ", reason)
+			return ruleResponse(v.rule, utils.Validation, "reason: "+reason, response.RuleStatusFail)
 		} else {
 			return ruleResponse(v.rule, utils.Validation, "manifest match successfull", response.RuleStatusPass)
 		}

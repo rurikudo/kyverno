@@ -21,6 +21,11 @@ spec:
         # do not remove
         app.kubernetes.io/name: kyverno
     spec:
+      volumes:
+        - name: tmpfs
+          emptyDir: {}
+        - name: sigstore
+          emptyDir: {}
       affinity:
         podAntiAffinity:
           preferredDuringSchedulingIgnoredDuringExecution:
@@ -127,6 +132,11 @@ spec:
             timeoutSeconds: 5
             failureThreshold: 4
             successThreshold: 1
+          volumeMounts:
+          - mountPath: /tmp
+            name: tmpfs
+          - mountPath: /.sigstore
+            name: sigstore
   strategy:
     type: RollingUpdate
     rollingUpdate:

@@ -2,6 +2,7 @@ package v1
 
 import (
 	"github.com/sigstore/k8s-manifest-sigstore/pkg/k8smanifest"
+	shieldconfig "github.com/stolostron/integrity-shield/shield/pkg/config"
 	rbacv1 "k8s.io/api/rbac/v1"
 	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -475,6 +476,12 @@ type Validation struct {
 	// Fields which will be ignored while comparing manifests.
 	// +optional
 	IgnoreFields k8smanifest.ObjectFieldBindingList `json:"ignoreFields,omitempty" yaml:"ignoreFields,omitempty"`
+
+	SkipUsers    shieldconfig.ObjectUserBindingList `json:"skipUsers,omitempty"`
+	InScopeUsers shieldconfig.ObjectUserBindingList `json:"inScopeUsers,omitempty"`
+
+	// Subject is the verified identity, for example the email address
+	Subject string `json:"subject,omitempty" yaml:"subject,omitempty"`
 
 	// ForEach applies policy rule changes to nested elements.
 	// +optional

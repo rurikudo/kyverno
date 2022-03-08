@@ -2036,13 +2036,13 @@ github.com/shurcooL/go-goon v0.0.0-20170922171312-37c2f522c041/go.mod h1:N5mDOms
 github.com/shurcooL/graphql v0.0.0-20181231061246-d48a9a75455f/go.mod h1:AuYgA5Kyo4c7HfUmvRGs/6rGlMMV/6B1bVnB9JxJEEg=
 github.com/shurcooL/sanitized_anchor_name v1.0.0/go.mod h1:1NzhyTcUVG4SuEtjjoZeVRXNmyL/1OwPU0+IJeTBvfc=
 github.com/sigstore/cosign v0.6.1-0.20210723014001-364cadc9e41f/go.mod h1:/mRVq8S+bc2A33yqEEm+Uwy/r01InTgJdvfswbeQPmI=
-github.com/sigstore/cosign v1.5.1 h1:ozQz2uZPKhopvOCgp6Oh3w+W+JOopIFgHpSYdbdSmKA=
-github.com/sigstore/cosign v1.5.1/go.mod h1:USeA+jISR3H86hfgsTn1UJYKC9mgEE7/o+dJ7sk63MY=
+github.com/sigstore/cosign v1.5.2 h1:YMVIjSLQ+6fL8m3deqLcg7aRqGbU/U6sJvcU0aT4fSM=
+github.com/sigstore/cosign v1.5.2/go.mod h1:USeA+jISR3H86hfgsTn1UJYKC9mgEE7/o+dJ7sk63MY=
 github.com/sigstore/fulcio v0.0.0-20210720153316-846105495d38/go.mod h1:FZL7iVdWduaZRpXrvjmuWyr7WyXy6KXsaEVhHdITlz4=
 github.com/sigstore/fulcio v0.1.2-0.20220114150912-86a2036f9bc7 h1:XE7A9lJ+wYhmUFBWYTaw3Ph943zHB4iBYd5R0SX0ZOA=
 github.com/sigstore/fulcio v0.1.2-0.20220114150912-86a2036f9bc7/go.mod h1:ANQivY/lfOp9hN92S813LEthkm/kit96hzeIF3SNoZA=
-github.com/sigstore/k8s-manifest-sigstore v0.2.0 h1:Xbm7lm1cneTWNclJEGYRXC/xLgljE8qlLiZwS5qi5nw=
-github.com/sigstore/k8s-manifest-sigstore v0.2.0/go.mod h1:9o37yDKF+aMQJ5p1LRH1KaT+YgJgTKZvk0NZwyNJolY=
+github.com/sigstore/k8s-manifest-sigstore v0.2.1-0.20220304050627-ed26e30c7343 h1:QJ7cl5IgVvb/68mxXTXJYHmAKg5+BBfeVpuifmarnSQ=
+github.com/sigstore/k8s-manifest-sigstore v0.2.1-0.20220304050627-ed26e30c7343/go.mod h1:fWELceT4GvNZZrC12UutTIpuNa15++WW0rxxiStokTw=
 github.com/sigstore/rekor v0.2.1-0.20210714185543-38d532d5c0b1/go.mod h1:cL9B3+/gp3BG+/bhkSHBA3MQZMten5xM6BhJYd5b5zU=
 github.com/sigstore/rekor v0.4.1-0.20220114213500-23f583409af3 h1:mbqXrm8YZXN/cJMGeBkgPnswtfrOxDE1f7QZdJ+POQE=
 github.com/sigstore/rekor v0.4.1-0.20220114213500-23f583409af3/go.mod h1:u9clLqaVjqV9pExVL1XkM37dGyMCOX/LMocS9nsnWDY=
@@ -2128,6 +2128,8 @@ github.com/src-d/gcfg v1.4.0/go.mod h1:p/UMsR43ujA89BJY9duynAwIpvqEujIH/jFlfL7jW
 github.com/ssgreg/nlreturn/v2 v2.1.0/go.mod h1:E/iiPB78hV7Szg2YfRgyIrk1AD6JVMTRkkxBiELzh2I=
 github.com/stefanberger/go-pkcs11uri v0.0.0-20201008174630-78d3cae3a980/go.mod h1:AO3tvPzVZ/ayst6UlUKUv6rcPQInYe3IknH3jYhAKu8=
 github.com/stoewer/go-strcase v1.2.0/go.mod h1:IBiWB2sKIp3wVVQ3Y035++gc+knqhUQag1KpM8ahLw8=
+github.com/stolostron/integrity-shield/shield v0.0.0-20220307094319-c8b478ab69e0 h1:hgwmtTHh0gy3hqnli40Gc4ozgMRWHF1+5FVdaGulKq0=
+github.com/stolostron/integrity-shield/shield v0.0.0-20220307094319-c8b478ab69e0/go.mod h1:y/nI05fVc+wF8CzjDmRng2QxGsfnDcain6pgS1e/fP4=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v1.0.0/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
