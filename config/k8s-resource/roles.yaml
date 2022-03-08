@@ -32,7 +32,7 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
-  name: resource-verify-dry-run
+  name: manifest-verify-dry-run
   namespace: kyverno
 rules:
 - apiGroups:
