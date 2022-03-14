@@ -2128,8 +2128,8 @@ github.com/src-d/gcfg v1.4.0/go.mod h1:p/UMsR43ujA89BJY9duynAwIpvqEujIH/jFlfL7jW
 github.com/ssgreg/nlreturn/v2 v2.1.0/go.mod h1:E/iiPB78hV7Szg2YfRgyIrk1AD6JVMTRkkxBiELzh2I=
 github.com/stefanberger/go-pkcs11uri v0.0.0-20201008174630-78d3cae3a980/go.mod h1:AO3tvPzVZ/ayst6UlUKUv6rcPQInYe3IknH3jYhAKu8=
 github.com/stoewer/go-strcase v1.2.0/go.mod h1:IBiWB2sKIp3wVVQ3Y035++gc+knqhUQag1KpM8ahLw8=
-github.com/stolostron/integrity-shield/shield v0.0.0-20220307094319-c8b478ab69e0 h1:hgwmtTHh0gy3hqnli40Gc4ozgMRWHF1+5FVdaGulKq0=
-github.com/stolostron/integrity-shield/shield v0.0.0-20220307094319-c8b478ab69e0/go.mod h1:y/nI05fVc+wF8CzjDmRng2QxGsfnDcain6pgS1e/fP4=
+github.com/stolostron/integrity-shield/shield v0.0.0-20220314052218-9fef9ab56eee h1:IxsRYT2/7UcBbvGVY87Tes4dFKDYh/I+k7T7HM1kAPk=
+github.com/stolostron/integrity-shield/shield v0.0.0-20220314052218-9fef9ab56eee/go.mod h1:y/nI05fVc+wF8CzjDmRng2QxGsfnDcain6pgS1e/fP4=
 github.com/streadway/amqp v0.0.0-20190404075320-75d898a42a94/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v0.0.0-20190827072141-edfb9018d271/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
 github.com/streadway/amqp v1.0.0/go.mod h1:AZpEONHx3DKn8O/DFsRAY58/XVQiIPMTMB1SddzLXVw=
