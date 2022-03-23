@@ -59,7 +59,7 @@ require (
 	github.com/chrismellard/docker-credential-acr-env v0.0.0-20220119192733-fe33c00cee21
 	github.com/evanphx/json-patch v4.12.0+incompatible
 	github.com/google/go-containerregistry/pkg/authn/kubernetes v0.0.0-20220125170349-50dfc2733d10
-	github.com/stolostron/integrity-shield/shield v0.0.0-20220316114430-1510863890bf
+	github.com/stolostron/integrity-shield/shield v0.0.0-20220323090931-c57ccb8724ff
 	gopkg.in/inf.v0 v0.9.1
 )
 
@@ -305,7 +305,7 @@ require (
 	github.com/sergi/go-diff v1.2.0 // indirect
 	github.com/shibumi/go-pathspec v1.3.0 // indirect
 	github.com/sigstore/fulcio v0.1.2-0.20220114150912-86a2036f9bc7 // indirect
-	github.com/sigstore/k8s-manifest-sigstore v0.2.1-0.20220316094109-adfc287a58c0
+	github.com/sigstore/k8s-manifest-sigstore v0.2.1-0.20220323082949-1c9e624d9ac9
 	github.com/sigstore/rekor v0.4.1-0.20220114213500-23f583409af3 // indirect
 	github.com/sirupsen/logrus v1.8.1 // indirect
 	github.com/skratchdot/open-golang v0.0.0-20200116055534-eef842397966 // indirect

@@ -1,6 +1,7 @@
 package engine
 
 import (
+	"encoding/json"
 	"fmt"
 	"reflect"
 	"time"
@@ -13,6 +14,7 @@ import (
 	gojmespath "github.com/jmespath/go-jmespath"
 	"github.com/kyverno/kyverno/pkg/engine/response"
 	"github.com/kyverno/kyverno/pkg/engine/utils"
+	"k8s.io/apiextensions-apiserver/pkg/apis/apiextensions"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -24,6 +26,10 @@ const (
 	PodControllers = "DaemonSet,Deployment,Job,StatefulSet,CronJob"
 	//PodControllersAnnotation defines the annotation key for Pod-Controllers
 	PodControllersAnnotation = "pod-policies.kyverno.io/autogen-controllers"
+	ManifestVerifyAnnotation = "manifest-verify.kyverno.io/result"
+	// ManifestVerifyReasonAnnotation   = "manifest-verify.kyverno.io/reason"
+	ManifestVerifyAnnotationVerified = "true"
+	ManifestVerifyAnnotationFailed   = "false"
 )
 
 // Mutate performs mutation. Overlay first and then mutation patches
@@ -90,6 +96,8 @@ func Mutate(policyContext *PolicyContext) (resp *response.EngineResponse) {
 		var ruleResp *response.RuleResponse
 		if rule.Mutation.ForEachMutation != nil {
 			ruleResp, patchedResource = mutateForEach(ruleCopy, policyContext, patchedResource, logger)
+		} else if rule.Mutation.Key != "" { // verifyManifest
+			ruleResp, patchedResource = verifyResource(&rule, policyContext, patchedResource, logger)
 		} else {
 			ruleResp, patchedResource = mutateResource(ruleCopy, policyContext, patchedResource, logger)
 		}
@@ -102,6 +110,7 @@ func Mutate(policyContext *PolicyContext) (resp *response.EngineResponse) {
 				incrementAppliedCount(resp)
 			}
 		}
+
 	}
 
 	for _, r := range resp.PolicyResponse.Rules {
@@ -287,4 +296,50 @@ func endMutateResultResponse(logger logr.Logger, resp *response.EngineResponse, 
 	resp.PolicyResponse.ProcessingTime = time.Since(startTime)
 	resp.PolicyResponse.PolicyExecutionTimestamp = startTime.Unix()
 	logger.V(5).Info("finished processing policy", "processingTime", resp.PolicyResponse.ProcessingTime.String(), "mutationRulesApplied", resp.PolicyResponse.RulesAppliedCount)
+}
+
+// if resource is valid,  an annotation "manifest-verify.kyverno.io/result": "true" is attached.
+func verifyResource(rule *kyverno.Rule, policyContext *PolicyContext, resource unstructured.Unstructured, logger logr.Logger) (*response.RuleResponse, unstructured.Unstructured) {
+	var res *response.RuleResponse
+	var annotationResPatch string
+	operation, err := policyContext.JSONContext.Query("request.operation")
+	// there is no need to check manifest signatures during a delete request.
+	if err == nil && operation != "DELETE" {
+		verified, _, _ := VerifyManifest(policyContext, rule.Mutation.Key, rule.Mutation.IgnoreFields, rule.Mutation.SkipUsers, rule.Mutation.InScopeUsers, rule.Mutation.Subject)
+
+		if verified {
+			annotationResPatch = ManifestVerifyAnnotationVerified
+			// patch
+			preconditionsPassed, err := checkPreconditions(logger, policyContext, rule.AnyAllConditions)
+			if err != nil {
+				return ruleError(rule, utils.Mutation, "failed to evaluate preconditions", err), resource
+			}
+
+			if !preconditionsPassed {
+				return ruleResponse(rule, utils.Mutation, "preconditions not met", response.RuleStatusSkip), resource
+			}
+			var patchRuleJson apiextensions.JSON
+			patchStrategicMerge := map[string]interface{}{
+				"metadata": map[string]interface{}{
+					"annotations": map[string]interface{}{
+						ManifestVerifyAnnotation: annotationResPatch,
+					},
+				},
+			}
+			patchRuleRaw, _ := json.Marshal(patchStrategicMerge)
+			_ = json.Unmarshal(patchRuleRaw, &patchRuleJson)
+
+			vresPatchRule := &kyverno.Rule{
+				Name: "verify-manifest-result",
+				Mutation: kyverno.Mutation{
+					PatchStrategicMerge: patchRuleJson,
+				},
+			}
+
+			mutateResp := mutate.Mutate(vresPatchRule, policyContext.JSONContext, resource, logger)
+			ruleResp := buildRuleResponse(rule, mutateResp)
+			return ruleResp, mutateResp.PatchedResource
+		}
+	}
+	return res, resource
 }

@@ -41,6 +41,8 @@ func ForceMutate(ctx *context.Context, policy kyverno.ClusterPolicy, resource un
 
 				patchedResource = mutatedResource
 			}
+		} else if r.Mutation.Key != "" {
+			// TODO: fix
 		} else {
 			m := r.Mutation
 			patcher := mutate.NewPatcher(r.Name, m.PatchStrategicMerge, m.PatchesJSON6902, patchedResource, ctx, logger)
