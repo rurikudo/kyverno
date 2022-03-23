@@ -426,6 +426,25 @@ type Mutation struct {
 	// +optional
 	PatchesJSON6902 string `json:"patchesJson6902,omitempty" yaml:"patchesJson6902,omitempty"`
 
+	// Key is the PEM encoded public key that the yaml manifest is signed with.
+	// +optional
+	Key string `json:"key,omitempty" yaml:"key,omitempty"`
+
+	// Fields which will be ignored while comparing manifests.
+	// +optional
+	IgnoreFields k8smanifest.ObjectFieldBindingList `json:"ignoreFields,omitempty" yaml:"ignoreFields,omitempty"`
+
+	// SkipUsers is a list of ServiceAccounts. Admission request from SkipUsers is allowed without signature.
+	// +optional
+	SkipUsers shieldconfig.ObjectUserBindingList `json:"skipUsers,omitempty" yaml:"skipUsers,omitempty"`
+
+	// Admission request from InScopeUsers is forcibly validated.
+	// +optional
+	InScopeUsers shieldconfig.ObjectUserBindingList `json:"inScopeUsers,omitempty" yaml:"inScopeUsers,omitempty"`
+
+	// Subject is the verified identity, for example the email address
+	Subject string `json:"subject,omitempty" yaml:"subject,omitempty"`
+
 	// ForEachMutation applies policy rule changes to nested elements.
 	// +optional
 	ForEachMutation []*ForEachMutation `json:"foreach,omitempty" yaml:"foreach,omitempty"`
