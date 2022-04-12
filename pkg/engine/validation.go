@@ -19,7 +19,6 @@ import (
 	"github.com/kyverno/kyverno/pkg/engine/utils"
 	"github.com/kyverno/kyverno/pkg/engine/validate"
 	"github.com/kyverno/kyverno/pkg/engine/variables"
-	shieldconfig "github.com/stolostron/integrity-shield/shield/pkg/config"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"sigs.k8s.io/controller-runtime/pkg/log"
 )
@@ -157,9 +156,6 @@ type validator struct {
 	deny             *kyverno.Deny
 	key              string
 	ignoreFields     k8smanifest.ObjectFieldBindingList
-	skipUsers        shieldconfig.ObjectUserBindingList
-	inScopeUsers     shieldconfig.ObjectUserBindingList
-	subject          string
 }
 
 func newValidator(log logr.Logger, ctx *PolicyContext, rule *kyverno.Rule) *validator {
@@ -175,9 +171,6 @@ func newValidator(log logr.Logger, ctx *PolicyContext, rule *kyverno.Rule) *vali
 		deny:             ruleCopy.Validation.Deny,
 		key:              ruleCopy.Validation.Key,
 		ignoreFields:     ruleCopy.Validation.IgnoreFields,
-		skipUsers:        ruleCopy.Validation.SkipUsers,
-		inScopeUsers:     ruleCopy.Validation.InScopeUsers,
-		subject:          ruleCopy.Validation.Subject,
 	}
 }
 
