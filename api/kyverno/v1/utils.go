@@ -73,6 +73,17 @@ func (p *ClusterPolicy) HasVerifyImages() bool {
 	return false
 }
 
+// HasYAMLSignatureVerify checks for validate rule
+func  (p *ClusterPolicy)  HasYAMLSignatureVerify() bool {
+	for _, rule := range p.Spec.Rules {
+		if rule.HasYAMLSignatureVerify() {
+			return true
+		}
+	}
+
+	return false
+}
+
 // BackgroundProcessingEnabled checks if background is set to true
 func (p *ClusterPolicy) BackgroundProcessingEnabled() bool {
 	if p.Spec.Background == nil {
@@ -100,6 +111,11 @@ func (r Rule) HasValidate() bool {
 // HasGenerate checks for generate rule
 func (r Rule) HasGenerate() bool {
 	return !reflect.DeepEqual(r.Generation, Generation{})
+}
+
+// HasYAMLSignatureVerify checks for validate rule
+func (r Rule) HasYAMLSignatureVerify() bool {
+	return r.Validation.Key != ""
 }
 
 // MatchKinds returns a slice of all kinds to match

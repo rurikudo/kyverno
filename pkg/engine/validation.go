@@ -143,13 +143,7 @@ func addRuleResponse(log logr.Logger, resp *response.EngineResponse, ruleResp *r
 	ruleResp.RuleStats.RuleExecutionTimestamp = startTime.Unix()
 	log.V(4).Info("finished processing rule", "processingTime", ruleResp.RuleStats.ProcessingTime.String())
 
-	if ruleResp.Status == response.RuleStatusPass || ruleResp.Status == response.RuleStatusFail {
-		incrementAppliedCount(resp)
-	} else if ruleResp.Status == response.RuleStatusError {
-		incrementErrorCount(resp)
-	}
-
-	resp.PolicyResponse.Rules = append(resp.PolicyResponse.Rules, *ruleResp)
+	resp.Add(ruleResp)
 }
 
 type validator struct {
@@ -242,9 +236,6 @@ func (v *validator) validate() *response.RuleResponse {
 			}
 		}
 
-		return ruleResponse
-	} else if v.key != "" {
-		ruleResponse := v.validateKey()
 		return ruleResponse
 	}
 
@@ -390,24 +381,6 @@ func (v *validator) validateDeny() *response.RuleResponse {
 	}
 
 	return ruleResponse(v.rule, utils.Validation, v.getDenyMessage(deny), response.RuleStatusPass)
-}
-
-func (v *validator) validateKey() *response.RuleResponse {
-	operation, err := v.ctx.JSONContext.Query("request.operation")
-	// there is no need to check manifest signatures during a delete request.
-	if err == nil && operation != "DELETE" {
-		verified, reason, err := VerifyManifest(v.ctx, v.key, v.ignoreFields, v.skipUsers, v.inScopeUsers, v.subject)
-		if err != nil {
-			return ruleError(v.rule, utils.Validation, "manifest verification failed", err)
-		}
-		if !verified {
-			v.log.Info("invalid request ", "verified: ", verified, "reason: ", reason)
-			return ruleResponse(v.rule, utils.Validation, "reason: "+reason, response.RuleStatusFail)
-		} else {
-			return ruleResponse(v.rule, utils.Validation, "manifest match successfull", response.RuleStatusPass)
-		}
-	}
-	return ruleResponse(v.rule, utils.Validation, "manifest match not required for delete request", response.RuleStatusSkip)
 }
 
 func (v *validator) getDenyMessage(deny bool) string {
