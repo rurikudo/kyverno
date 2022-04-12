@@ -1,17 +1,18 @@
 package engine
 
 import (
+	"encoding/json"
 	"testing"
 
 	"github.com/sigstore/k8s-manifest-sigstore/pkg/k8smanifest"
-	"github.com/sigstore/k8s-manifest-sigstore/pkg/util/mapnode"
 	shieldconfig "github.com/stolostron/integrity-shield/shield/pkg/config"
 	"gotest.tools/assert"
+	"k8s.io/api/admission/v1beta1"
 )
 
 var test_policy = `{}`
 
-var signedResource = `{
+var signed_resource = `{
 	"apiVersion": "v1",
 	"data": {
 		"comment": "comment1",
@@ -118,42 +119,18 @@ BibYLJ5L4VSMvGxeMLnBGdM48w5IE//6idUPj3rscigFdHs7GDMH4LLAng==
 -----END PUBLIC KEY-----`
 
 func Test_VerifyManifest(t *testing.T) {
-	policyContext := buildContext(t, test_policy, signedResource)
-	var diffVar *mapnode.DiffResult
+	policyContext := buildContext(t, test_policy, signed_resource)
+	var request *v1beta1.AdmissionRequest
+	_ = json.Unmarshal([]byte(signed_adreq), &request)
+	policyContext.JSONContext.AddRequest(request)
+	policyContext.Policy.Name = "test-policy"
 	ignoreFields := k8smanifest.ObjectFieldBindingList{}
 	skipUsers := shieldconfig.ObjectUserBindingList{}
 	inScopeUsers := shieldconfig.ObjectUserBindingList{}
 	subject := ""
 
-	verified, diff, err := verifyManifest(policyContext, ecdsaPub, ignoreFields)
+	verified, msg, err := verifyManifest(policyContext, ecdsaPub, ignoreFields, skipUsers, inScopeUsers, subject)
 	assert.NilError(t, err)
 	assert.Equal(t, verified, true)
 	assert.Equal(t, msg, "Singed by a valid signer: ")
-}
-
-var unsignedResource = `{
-	"apiVersion": "v1",
-	"kind": "Pod",
-	"metadata": {
-		"name": "nginx"
-	},
-	"spec": {
-		"containers": [
-			{
-				"image": "nginx:1.14.2",
-				"name": "nginx"
-			}
-		]
-	}
-}`
-
-func Test_VerifyManifest_no_signature(t *testing.T) {
-	policyContext := buildContext(t, test_policy, unsignedResource)
-	var diffVar *mapnode.DiffResult
-	ignoreFields := k8smanifest.ObjectFieldBindingList{}
-
-	verified, diff, err := verifyManifest(policyContext, "", ignoreFields)
-	assert.ErrorContains(t, err, "")
-	assert.Equal(t, verified, false)
-	assert.Equal(t, diff, diffVar)
 }

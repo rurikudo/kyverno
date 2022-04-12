@@ -90,24 +90,11 @@ func Mutate(policyContext *PolicyContext) (resp *response.EngineResponse) {
 		var ruleResp *response.RuleResponse
 		if rule.Mutation.ForEachMutation != nil {
 			ruleResp, patchedResource = mutateForEach(ruleCopy, policyContext, patchedResource, logger)
-		} else if rule.Mutation.Key != "" { // verifyManifest
-			verified := verifyResource(&rule, policyContext, patchedResource, logger)
-			if verified {
-				ruleResp, patchedResource = mutateResource(ruleCopy, policyContext, patchedResource, logger)
-			}
 		} else {
 			ruleResp, patchedResource = mutateResource(ruleCopy, policyContext, patchedResource, logger)
 		}
 
-		if ruleResp != nil {
-			resp.PolicyResponse.Rules = append(resp.PolicyResponse.Rules, *ruleResp)
-			if ruleResp.Status == response.RuleStatusError {
-				incrementErrorCount(resp)
-			} else {
-				incrementAppliedCount(resp)
-			}
-		}
-
+		resp.Add(ruleResp)
 	}
 
 	for _, r := range resp.PolicyResponse.Rules {
@@ -293,15 +280,4 @@ func endMutateResultResponse(logger logr.Logger, resp *response.EngineResponse, 
 	resp.PolicyResponse.ProcessingTime = time.Since(startTime)
 	resp.PolicyResponse.PolicyExecutionTimestamp = startTime.Unix()
 	logger.V(5).Info("finished processing policy", "processingTime", resp.PolicyResponse.ProcessingTime.String(), "mutationRulesApplied", resp.PolicyResponse.RulesAppliedCount)
-}
-
-// if resource is valid,  an annotation "manifest-verify.kyverno.io/result": "true" is attached.
-func verifyResource(rule *kyverno.Rule, policyContext *PolicyContext, resource unstructured.Unstructured, logger logr.Logger) bool {
-	operation, err := policyContext.JSONContext.Query("request.operation")
-	// there is no need to check manifest signatures during a delete request.
-	if err == nil && operation != "DELETE" {
-		sigVerified, _, _ := VerifyManifest(policyContext, rule.Mutation.Key, rule.Mutation.IgnoreFields, rule.Mutation.SkipUsers, rule.Mutation.InScopeUsers, rule.Mutation.Subject)
-		return sigVerified
-	}
-	return false
 }
