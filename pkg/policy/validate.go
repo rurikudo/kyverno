@@ -1487,6 +1487,7 @@ func jsonPatchOnPod(rule kyverno.Rule) bool {
 func validateKinds(kinds []string, mock bool, client *dclient.Client, p kyverno.ClusterPolicy) error {
 	for _, kind := range kinds {
 		gv, k := comn.GetKindFromGVK(kind)
+		// TODO: enable Kyverno Policy protection
 		// if k == p.Kind {
 		// 	return fmt.Errorf("kind and match resource kind should not be the same")
 		// }
