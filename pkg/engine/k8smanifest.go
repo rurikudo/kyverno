@@ -85,14 +85,19 @@ func verifyManifest(policyContext *PolicyContext, ecdsaPub string, ignoreFields 
 		SkipUsers:            skipUsers,
 		InScopeUsers:         inScopeUsers,
 	}
-	manifestVerifyRule.Signers = append(manifestVerifyRule.Signers, subject)
-	key := shieldconfig.KeyConfig{
-		Key: shieldconfig.Key{
-			PEM:  ecdsaPub,
-			Name: policyContext.Policy.Name,
-		},
+	if subject != "" { // keyless
+		manifestVerifyRule.Signers = append(manifestVerifyRule.Signers, subject)
 	}
-	manifestVerifyRule.KeyConfigs = append(manifestVerifyRule.KeyConfigs, key)
+	if ecdsaPub != "" { // keyed
+		key := shieldconfig.KeyConfig{
+			Key: shieldconfig.Key{
+				PEM:  ecdsaPub,
+				Name: policyContext.Policy.Name,
+			},
+		}
+		manifestVerifyRule.KeyConfigs = append(manifestVerifyRule.KeyConfigs, key)
+	}
+
 	request, err := policyContext.JSONContext.Query("request")
 	if err != nil {
 		return false, fmt.Sprintf("failed to get a request from policyContext: %s", err.Error()), err
