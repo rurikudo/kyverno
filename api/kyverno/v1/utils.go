@@ -74,7 +74,7 @@ func (p *ClusterPolicy) HasVerifyImages() bool {
 }
 
 // HasYAMLSignatureVerify checks for validate rule
-func  (p *ClusterPolicy)  HasYAMLSignatureVerify() bool {
+func (p *ClusterPolicy) HasYAMLSignatureVerify() bool {
 	for _, rule := range p.Spec.Rules {
 		if rule.HasYAMLSignatureVerify() {
 			return true
@@ -115,7 +115,7 @@ func (r Rule) HasGenerate() bool {
 
 // HasYAMLSignatureVerify checks for validate rule
 func (r Rule) HasYAMLSignatureVerify() bool {
-	return r.Validation.Key != ""
+	return (r.Validation.Key != "" || r.Validation.Subject != "")
 }
 
 // MatchKinds returns a slice of all kinds to match

@@ -95,7 +95,7 @@ func validationElemCount(v *kyverno.Validation) int {
 		count++
 	}
 
-	if v.Key != "" {
+	if v.Key != "" || v.Subject != "" {
 		count++
 	}
 
