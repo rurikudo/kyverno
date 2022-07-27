@@ -73,7 +73,7 @@ require (
 	google.golang.org/grpc v1.47.0
 )
 
-require github.com/sigstore/k8s-manifest-sigstore v0.3.1-0.20220719082352-b963d2851c69
+require github.com/sigstore/k8s-manifest-sigstore v0.3.1-0.20220727120414-18676b958438
 
 require (
 	bitbucket.org/creachadair/shell v0.0.6 // indirect

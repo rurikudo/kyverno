@@ -110,6 +110,10 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 		vo.AnnotationConfig.AnnotationKeyDomain = verifyRule.AnnotationDomain
 	}
 
+	// allow chanage to image by kyverno
+	// e.g.) nginx:1.14.2 --> docker.io/nginx:1.14.2
+	vo.CheckMutatingResource = true
+
 	// signature verification by each attestor
 	verifiedMsgs := []string{}
 	for i, attestorSet := range verifyRule.Attestors {
@@ -255,7 +259,17 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 			result, err := k8smanifest.VerifyResource(resource, vo)
 			if err != nil {
 				logger.V(4).Info("verifyResoource return err;", err.Error())
-				entryError = fmt.Errorf("%s: %s", attestorPath+subPath, err.Error())
+				if k8smanifest.IsSignatureNotFoundError(err) {
+					// no signature found
+					failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, err.Error())
+					failedMessageList = append(failedMessageList, failReason)
+				} else if k8smanifest.IsMessageNotFoundError(err) {
+					// no signature and message found
+					failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, err.Error())
+					failedMessageList = append(failedMessageList, failReason)
+				} else {
+					entryError = fmt.Errorf("%s: %s", attestorPath+subPath, err.Error())
+				}
 			} else {
 				resBytes, _ := json.Marshal(result)
 				logger.V(4).Info("verify result:", string(resBytes))
@@ -280,8 +294,8 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 			errorList = append(errorList, entryError)
 		}
 		if verifiedCount >= requiredCount {
-			logger.V(2).Info("manigest verification succeeded", "verifiedCount", verifiedCount, "requiredCount", requiredCount)
-			reason := fmt.Sprintf("manigest verification succeeded; verifiedCount %d; requiredCount %d; message %s",
+			logger.V(2).Info("manifest verification succeeded", "verifiedCount", verifiedCount, "requiredCount", requiredCount)
+			reason := fmt.Sprintf("manifest verification succeeded; verifiedCount %d; requiredCount %d; message %s",
 				verifiedCount, requiredCount, strings.Join(verifiedMessageList, ","))
 			return true, reason, nil
 		}
@@ -296,10 +310,10 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 				mergedErr = e
 			}
 		}
-		mergedErr = fmt.Errorf("manigest verification failed; verifiedCount %d; requiredCount %d; %w", verifiedCount, requiredCount, mergedErr)
+		mergedErr = fmt.Errorf("manifest verification failed; verifiedCount %d; requiredCount %d; %w", verifiedCount, requiredCount, mergedErr)
 		return false, "", mergedErr
 	}
-	reason := fmt.Sprintf("manigest verification failed; verifiedCount %d; requiredCount %d; message %s",
+	reason := fmt.Sprintf("manifest verification failed; verifiedCount %d; requiredCount %d; message %s",
 		verifiedCount, requiredCount, strings.Join(failedMessageList, ","))
 	return false, reason, nil
 }
