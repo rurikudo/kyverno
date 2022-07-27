@@ -72,7 +72,7 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 	logger.V(4).Info("verifying manifest...", adreq.Namespace, adreq.Kind.Kind, adreq.Name, adreq.UserInfo.Username)
 
 	// allow dryrun request
-	if *adreq.DryRun {
+	if adreq.DryRun != nil && *adreq.DryRun {
 		return true, "allowed because of DryRun request", nil
 	}
 
