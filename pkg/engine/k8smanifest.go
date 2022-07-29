@@ -89,7 +89,10 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 	// adding default ignoreFields from pkg/engine/resources/default-config.yaml
 	vo = addDefaultConfig(vo)
 	// adding ignoreFields from Policy
-	vo.IgnoreFields = append(vo.IgnoreFields, verifyRule.IgnoreFields...)
+	for _, i := range verifyRule.IgnoreFields {
+		converted := k8smanifest.ObjectFieldBinding(i)
+		vo.IgnoreFields = append(vo.IgnoreFields, converted)
+	}
 
 	// dryrun setting
 	vo.DisableDryRun = !verifyRule.DryRunOption.Enable
