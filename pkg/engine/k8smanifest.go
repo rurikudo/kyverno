@@ -113,10 +113,6 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 		vo.AnnotationConfig.AnnotationKeyDomain = verifyRule.AnnotationDomain
 	}
 
-	// allow chanage to image by kyverno
-	// e.g.) nginx:1.14.2 --> docker.io/nginx:1.14.2
-	vo.CheckMutatingResource = true
-
 	// signature verification by each attestor
 	verifiedMsgs := []string{}
 	for i, attestorSet := range verifyRule.Attestors {
