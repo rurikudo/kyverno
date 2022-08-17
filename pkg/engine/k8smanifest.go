@@ -5,9 +5,11 @@ import (
 	_ "embed"
 	"encoding/json"
 	"fmt"
+	"math/rand"
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/ghodss/yaml"
 	"github.com/go-logr/logr"
@@ -38,10 +40,10 @@ func processYAMLValidationRule(log logr.Logger, ctx *PolicyContext, rule *kyvern
 func handleVerifyManifest(ctx *PolicyContext, rule *kyvernov1.Rule, logger logr.Logger) *response.RuleResponse {
 	verified, reason, err := verifyManifest(ctx, *rule.Validation.Manifests, logger)
 	if err != nil {
-		logger.V(2).Info(fmt.Sprintf("verifyManifest return err: %s", err.Error()))
+		logger.V(3).Info("verifyManifest return err", "error", err.Error())
 		return ruleError(rule, response.Validation, "error occurred during manifest verification", err)
 	}
-	logger.V(2).Info(fmt.Sprintf("verifyManifest result: verified %s; %s", strconv.FormatBool(verified), reason))
+	logger.V(3).Info("verifyManifest result", "verified", strconv.FormatBool(verified), "reason", reason)
 	if !verified {
 		return ruleResponse(*rule, response.Validation, reason, response.RuleStatusFail, nil)
 	}
@@ -52,23 +54,23 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 	// load AdmissionRequest
 	request, err := policyContext.JSONContext.Query("request")
 	if err != nil {
-		return false, "", fmt.Errorf("failed to get a request from policyContext: %s", err.Error())
+		return false, "", errors.Wrapf(err, "failed to get a request from policyContext")
 	}
 	reqByte, _ := json.Marshal(request)
 	var adreq *admissionv1.AdmissionRequest
 	err = json.Unmarshal(reqByte, &adreq)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to unmarshal a request from requestByte: %s", err.Error())
+		return false, "", errors.Wrapf(err, "failed to unmarshal a request from requestByte")
 	}
 	// unmarshal admission request object
 	var resource unstructured.Unstructured
 	objectBytes := adreq.Object.Raw
 	err = json.Unmarshal(objectBytes, &resource)
 	if err != nil {
-		return false, "", fmt.Errorf("failed to Unmarshal a requested object: %s", err.Error())
+		return false, "", errors.Wrapf(err, "failed to Unmarshal a requested object")
 	}
 
-	logger.V(4).Info("verifying manifest...", adreq.Namespace, adreq.Kind.Kind, adreq.Name, adreq.UserInfo.Username)
+	logger.V(4).Info("verifying manifest", "namespace", adreq.Namespace, "kind", adreq.Kind.Kind, "name", adreq.Name, "username", adreq.UserInfo.Username)
 
 	// allow dryrun request
 	if adreq.DryRun != nil && *adreq.DryRun {
@@ -156,12 +158,16 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 			}
 		} else {
 			subPath := ""
+			// set seed value for random numbers
+			rand.Seed(time.Now().UnixNano())
 			if a.Keys != nil {
 				subPath = subPath + ".keys"
 				Key := a.Keys.PublicKeys
 				if strings.HasPrefix(Key, "-----BEGIN PUBLIC KEY-----") || strings.HasPrefix(Key, "-----BEGIN PGP PUBLIC KEY BLOCK-----") {
 					// prepare env variable for pubkey
-					pubkeyEnv := fmt.Sprintf("_PK_%s_%d", uid, i)
+					// it consists of admission request ID, key index and random num
+					pubkeyEnv := fmt.Sprintf("_PK_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807)) //MaxInt64
+					fmt.Println(pubkeyEnv)
 					err := os.Setenv(pubkeyEnv, Key)
 					if err != nil {
 						entryError = errors.Wrapf(err, "failed to set env variable; %s", pubkeyEnv)
@@ -174,7 +180,6 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 					// this supports Kubernetes secrets and kms
 					vo.KeyPath = Key
 				}
-
 				if a.Keys.Rekor != nil {
 					vo.RekorURL = a.Keys.Rekor.URL
 				}
@@ -182,7 +187,7 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 				subPath = subPath + ".certificates"
 				if a.Certificates.Certificate != "" {
 					Cert := a.Certificates.Certificate
-					certEnv := fmt.Sprintf("_CERT_%s_%d", uid, i)
+					certEnv := fmt.Sprintf("_CERT_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807))
 					err := os.Setenv(certEnv, Cert)
 					if err != nil {
 						entryError = errors.Wrapf(err, "failed to set env variable; %s", certEnv)
@@ -194,7 +199,7 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 				}
 				if a.Certificates.CertificateChain != "" {
 					CertChain := a.Certificates.CertificateChain
-					certChainEnv := fmt.Sprintf("_CC_%s_%d", uid, i)
+					certChainEnv := fmt.Sprintf("_CC_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807))
 					err := os.Setenv(certChainEnv, CertChain)
 					if err != nil {
 						entryError = errors.Wrapf(err, "failed to set env variable; %s", certChainEnv)
@@ -248,10 +253,10 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 				continue
 			}
 
-			logger.V(4).Info("verifying resource by k8s-manifest-sigstore...")
+			logger.V(4).Info("verifying resource by k8s-manifest-sigstore")
 			result, err := k8smanifest.VerifyResource(resource, vo)
 			if err != nil {
-				logger.V(4).Info("verifyResoource return err;", err.Error())
+				logger.V(4).Info("verifyResoource return err", err.Error())
 				if k8smanifest.IsSignatureNotFoundError(err) {
 					// no signature found
 					failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, err.Error())
@@ -265,7 +270,7 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 				}
 			} else {
 				resBytes, _ := json.Marshal(result)
-				logger.V(4).Info("verify result:", string(resBytes))
+				logger.V(4).Info("verify result", string(resBytes))
 				if result.Verified {
 					// verification success.
 					verifiedCount++
