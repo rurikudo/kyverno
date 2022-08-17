@@ -18,12 +18,14 @@ import (
 	"github.com/kyverno/kyverno/pkg/engine/response"
 	"github.com/pkg/errors"
 	"github.com/sigstore/k8s-manifest-sigstore/pkg/k8smanifest"
+	"go.uber.org/multierr"
 	admissionv1 "k8s.io/api/admission/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 )
 
 const (
 	DefaultAnnotationKeyDomain = "cosign.sigstore.dev"
+	CosignEnvVariable          = "COSIGN_EXPERIMENTAL"
 )
 
 //go:embed resources/default-config.yaml
@@ -70,7 +72,8 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 		return false, "", errors.Wrapf(err, "failed to Unmarshal a requested object")
 	}
 
-	logger.V(4).Info("verifying manifest", "namespace", adreq.Namespace, "kind", adreq.Kind.Kind, "name", adreq.Name, "username", adreq.UserInfo.Username)
+	logger.V(4).Info("verifying manifest", "namespace", adreq.Namespace, "kind", adreq.Kind.Kind,
+		"name", adreq.Name, "username", adreq.UserInfo.Username)
 
 	// allow dryrun request
 	if adreq.DryRun != nil && *adreq.DryRun {
@@ -113,7 +116,7 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 	verifiedMsgs := []string{}
 	for i, attestorSet := range verifyRule.Attestors {
 		path := fmt.Sprintf(".attestors[%d]", i)
-		verified, reason, err := verify(resource, attestorSet, vo, path, string(adreq.UID), logger)
+		verified, reason, err := verifyAttestorSet(resource, attestorSet, vo, path, string(adreq.UID), logger)
 		if err != nil {
 			return verified, reason, err
 		}
@@ -127,7 +130,8 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 	return true, msg, nil
 }
 
-func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSet, vo *k8smanifest.VerifyResourceOption, path string, uid string, logger logr.Logger) (bool, string, error) {
+func verifyAttestorSet(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSet,
+	vo *k8smanifest.VerifyResourceOption, path string, uid string, logger logr.Logger) (bool, string, error) {
 	verifiedCount := 0
 	attestorSet = expandStaticKeys(attestorSet)
 	requiredCount := getRequiredCount(attestorSet)
@@ -137,6 +141,8 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 
 	for i, a := range attestorSet.Entries {
 		var entryError error
+		var verified bool
+		var reason string
 		attestorPath := fmt.Sprintf("%s.entries[%d]", path, i)
 		if a.Attestor != nil {
 			nestedAttestorSet, err := kyvernov1.AttestorSetUnmarshal(a.Attestor)
@@ -144,153 +150,25 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 				entryError = errors.Wrapf(err, "failed to unmarshal nested attestor %s", attestorPath)
 			} else {
 				attestorPath += ".attestor"
-				verified, reason, err := verify(resource, *nestedAttestorSet, vo, attestorPath, uid, logger)
+				verified, reason, err = verifyAttestorSet(resource, *nestedAttestorSet, vo, attestorPath, uid, logger)
 				if err != nil {
 					entryError = errors.Wrapf(err, "failed to verify signature; %s", attestorPath)
 				}
-				if verified {
-					// verification success.
-					verifiedCount++
-					verifiedMessageList = append(verifiedMessageList, reason)
-				} else {
-					failedMessageList = append(failedMessageList, reason)
-				}
 			}
 		} else {
-			subPath := ""
-			// set seed value for random numbers
-			rand.Seed(time.Now().UnixNano())
-			if a.Keys != nil {
-				subPath = subPath + ".keys"
-				Key := a.Keys.PublicKeys
-				if strings.HasPrefix(Key, "-----BEGIN PUBLIC KEY-----") || strings.HasPrefix(Key, "-----BEGIN PGP PUBLIC KEY BLOCK-----") {
-					// prepare env variable for pubkey
-					// it consists of admission request ID, key index and random num
-					pubkeyEnv := fmt.Sprintf("_PK_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807)) //MaxInt64
-					fmt.Println(pubkeyEnv)
-					err := os.Setenv(pubkeyEnv, Key)
-					if err != nil {
-						entryError = errors.Wrapf(err, "failed to set env variable; %s", pubkeyEnv)
-					} else {
-						keyPath := fmt.Sprintf("env://%s", pubkeyEnv)
-						vo.KeyPath = keyPath
-					}
-					defer os.Unsetenv(pubkeyEnv)
-				} else {
-					// this supports Kubernetes secrets and kms
-					vo.KeyPath = Key
-				}
-				if a.Keys.Rekor != nil {
-					vo.RekorURL = a.Keys.Rekor.URL
-				}
-			} else if a.Certificates != nil {
-				subPath = subPath + ".certificates"
-				if a.Certificates.Certificate != "" {
-					Cert := a.Certificates.Certificate
-					certEnv := fmt.Sprintf("_CERT_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807))
-					err := os.Setenv(certEnv, Cert)
-					if err != nil {
-						entryError = errors.Wrapf(err, "failed to set env variable; %s", certEnv)
-					} else {
-						certPath := fmt.Sprintf("env://%s", certEnv)
-						vo.Certificate = certPath
-					}
-					defer os.Unsetenv(certEnv)
-				}
-				if a.Certificates.CertificateChain != "" {
-					CertChain := a.Certificates.CertificateChain
-					certChainEnv := fmt.Sprintf("_CC_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807))
-					err := os.Setenv(certChainEnv, CertChain)
-					if err != nil {
-						entryError = errors.Wrapf(err, "failed to set env variable; %s", certChainEnv)
-					} else {
-						certChainPath := fmt.Sprintf("env://%s", certChainEnv)
-						vo.CertificateChain = certChainPath
-					}
-					defer os.Unsetenv(certChainEnv)
-				}
-				if a.Certificates.Rekor != nil {
-					vo.RekorURL = a.Keys.Rekor.URL
-				}
-			} else if a.Keyless != nil {
-				subPath = subPath + ".keyless"
-				_ = os.Setenv("COSIGN_EXPERIMENTAL", "1")
-				defer os.Unsetenv("COSIGN_EXPERIMENTAL")
-				if a.Keyless.Rekor != nil {
-					vo.RekorURL = a.Keyless.Rekor.URL
-				}
-				if a.Keyless.Roots != "" {
-					Roots := a.Keyless.Roots
-					cp, err := loadCertPool([]byte(Roots))
-					if err != nil {
-						entryError = errors.Wrap(err, "failed to load Root certificates")
-					} else {
-						vo.RootCerts = cp
-					}
-				}
-				Issuer := a.Keyless.Issuer
-				vo.OIDCIssuer = Issuer
-				Subject := a.Keyless.Subject
-				vo.Signers = k8smanifest.SignerList{Subject}
-			}
-
-			if a.Repository != "" {
-				vo.ResourceBundleRef = a.Repository
-			}
-
-			if a.Annotations != nil {
-				// check annotations
-				mnfstAnnotations := resource.GetAnnotations()
-				err := checkManifestAnnotations(mnfstAnnotations, a.Annotations)
-				if err != nil {
-					entryError = err
-				}
-			}
-
-			if entryError != nil {
-				entryError = fmt.Errorf("%s: %s", attestorPath+subPath, entryError.Error())
-				errorList = append(errorList, entryError)
-				continue
-			}
-
-			logger.V(4).Info("verifying resource by k8s-manifest-sigstore")
-			result, err := k8smanifest.VerifyResource(resource, vo)
-			if err != nil {
-				logger.V(4).Info("verifyResoource return err", err.Error())
-				if k8smanifest.IsSignatureNotFoundError(err) {
-					// no signature found
-					failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, err.Error())
-					failedMessageList = append(failedMessageList, failReason)
-				} else if k8smanifest.IsMessageNotFoundError(err) {
-					// no signature and message found
-					failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, err.Error())
-					failedMessageList = append(failedMessageList, failReason)
-				} else {
-					entryError = fmt.Errorf("%s: %s", attestorPath+subPath, err.Error())
-				}
-			} else {
-				resBytes, _ := json.Marshal(result)
-				logger.V(4).Info("verify result", string(resBytes))
-				if result.Verified {
-					// verification success.
-					verifiedCount++
-					reason := fmt.Sprintf("singed by a valid signer: %s", result.Signer)
-					verifiedMessageList = append(verifiedMessageList, reason)
-				} else {
-					failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, "failed to verify signature.")
-					if result.Diff != nil && result.Diff.Size() > 0 {
-						failReason = fmt.Sprintf("%s: failed to verify signature. diff found; %s", attestorPath+subPath, result.Diff.String())
-					} else if result.Signer != "" {
-						failReason = fmt.Sprintf("%s: no signer matches with this resource. signed by %s", attestorPath+subPath, result.Signer)
-					}
-					failedMessageList = append(failedMessageList, failReason)
-				}
-			}
+			verified, reason, entryError = verify(resource, a, vo, attestorPath, uid, i, logger)
 		}
 
 		if entryError != nil {
 			errorList = append(errorList, entryError)
+		} else if verified {
+			// verification success.
+			verifiedCount++
+			verifiedMessageList = append(verifiedMessageList, reason)
+		} else {
+			failedMessageList = append(failedMessageList, reason)
 		}
+
 		if verifiedCount >= requiredCount {
 			logger.V(2).Info("manifest verification succeeded", "verifiedCount", verifiedCount, "requiredCount", requiredCount)
 			reason := fmt.Sprintf("manifest verification succeeded; verifiedCount %d; requiredCount %d; message %s",
@@ -300,20 +178,160 @@ func verify(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSe
 	}
 
 	if len(errorList) != 0 {
-		var mergedErr error
-		for _, e := range errorList {
-			if mergedErr != nil {
-				mergedErr = fmt.Errorf("%s; %w", mergedErr.Error(), e)
-			} else {
-				mergedErr = e
-			}
-		}
-		mergedErr = fmt.Errorf("manifest verification failed; verifiedCount %d; requiredCount %d; %w", verifiedCount, requiredCount, mergedErr)
-		return false, "", mergedErr
+		err := multierr.Combine(errorList...)
+		logger.V(2).Info("manifest verification failed", "verifiedCount", verifiedCount, "requiredCount",
+			requiredCount, "errors", errorList)
+		return false, "", err
 	}
 	reason := fmt.Sprintf("manifest verification failed; verifiedCount %d; requiredCount %d; message %s",
 		verifiedCount, requiredCount, strings.Join(failedMessageList, ","))
+	logger.V(2).Info("manifest verification failed", "verifiedCount", verifiedCount, "requiredCount",
+		requiredCount, "reason", failedMessageList)
 	return false, reason, nil
+}
+
+func verify(resource unstructured.Unstructured, a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOption,
+	attestorPath, uid string, i int, logger logr.Logger) (bool, string, error) {
+	// check annotations
+	if a.Annotations != nil {
+		mnfstAnnotations := resource.GetAnnotations()
+		err := checkManifestAnnotations(mnfstAnnotations, a.Annotations)
+		if err != nil {
+			return false, "", err
+		}
+	}
+
+	// build verify option
+	vo, subPath, err, envVariables := buildOptionsAndPath(a, vo, uid, i)
+	// unset env variables after verification
+	defer cleanEnvVariables(envVariables)
+	if err != nil {
+		logger.V(4).Info("failed to build verify option", err.Error())
+		return false, "", errors.Wrapf(err, attestorPath+subPath)
+	}
+
+	logger.V(4).Info("verifying resource by k8s-manifest-sigstore")
+	result, err := k8smanifest.VerifyResource(resource, vo)
+	if err != nil {
+		logger.V(4).Info("verifyResoource return err", err.Error())
+		if k8smanifest.IsSignatureNotFoundError(err) {
+			// no signature found
+			failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, err.Error())
+			return false, failReason, nil
+		} else if k8smanifest.IsMessageNotFoundError(err) {
+			// no signature and message found
+			failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, err.Error())
+			return false, failReason, nil
+		} else {
+			return false, "", errors.Wrapf(err, attestorPath+subPath)
+		}
+	} else {
+		resBytes, _ := json.Marshal(result)
+		logger.V(4).Info("verify result", string(resBytes))
+		if result.Verified {
+			// verification success.
+			reason := fmt.Sprintf("singed by a valid signer: %s", result.Signer)
+			return true, reason, nil
+		} else {
+			failReason := fmt.Sprintf("%s: %s", attestorPath+subPath, "failed to verify signature.")
+			if result.Diff != nil && result.Diff.Size() > 0 {
+				failReason = fmt.Sprintf("%s: failed to verify signature. diff found; %s", attestorPath+subPath, result.Diff.String())
+			} else if result.Signer != "" {
+				failReason = fmt.Sprintf("%s: no signer matches with this resource. signed by %s", attestorPath+subPath, result.Signer)
+			}
+			return false, failReason, nil
+		}
+	}
+}
+
+func buildOptionsAndPath(a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOption, uid string, i int) (*k8smanifest.VerifyResourceOption, string, error, []string) {
+	subPath := ""
+	var entryError error
+	envVariables := []string{}
+	// set seed value for random numbers
+	rand.Seed(time.Now().UnixNano())
+	if a.Keys != nil {
+		subPath = subPath + ".keys"
+		Key := a.Keys.PublicKeys
+		if strings.HasPrefix(Key, "-----BEGIN PUBLIC KEY-----") || strings.HasPrefix(Key, "-----BEGIN PGP PUBLIC KEY BLOCK-----") {
+			// prepare env variable for pubkey
+			// it consists of admission request ID, key index and random num
+			pubkeyEnv := fmt.Sprintf("_PK_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807)) //MaxInt64
+			err := os.Setenv(pubkeyEnv, Key)
+			envVariables = append(envVariables, pubkeyEnv)
+			if err != nil {
+				entryError = errors.Wrapf(err, "failed to set env variable; %s", pubkeyEnv)
+			} else {
+				keyPath := fmt.Sprintf("env://%s", pubkeyEnv)
+				vo.KeyPath = keyPath
+			}
+		} else {
+			// this supports Kubernetes secrets and kms
+			vo.KeyPath = Key
+		}
+		if a.Keys.Rekor != nil {
+			vo.RekorURL = a.Keys.Rekor.URL
+		}
+	} else if a.Certificates != nil {
+		subPath = subPath + ".certificates"
+		if a.Certificates.Certificate != "" {
+			Cert := a.Certificates.Certificate
+			certEnv := fmt.Sprintf("_CERT_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807))
+			err := os.Setenv(certEnv, Cert)
+			envVariables = append(envVariables, certEnv)
+			if err != nil {
+				entryError = errors.Wrapf(err, "failed to set env variable; %s", certEnv)
+			} else {
+				certPath := fmt.Sprintf("env://%s", certEnv)
+				vo.Certificate = certPath
+			}
+		}
+		if a.Certificates.CertificateChain != "" {
+			CertChain := a.Certificates.CertificateChain
+			certChainEnv := fmt.Sprintf("_CC_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807))
+			err := os.Setenv(certChainEnv, CertChain)
+			envVariables = append(envVariables, certChainEnv)
+			if err != nil {
+				entryError = errors.Wrapf(err, "failed to set env variable; %s", certChainEnv)
+			} else {
+				certChainPath := fmt.Sprintf("env://%s", certChainEnv)
+				vo.CertificateChain = certChainPath
+			}
+		}
+		if a.Certificates.Rekor != nil {
+			vo.RekorURL = a.Keys.Rekor.URL
+		}
+	} else if a.Keyless != nil {
+		subPath = subPath + ".keyless"
+		_ = os.Setenv(CosignEnvVariable, "1")
+		envVariables = append(envVariables, CosignEnvVariable)
+		if a.Keyless.Rekor != nil {
+			vo.RekorURL = a.Keyless.Rekor.URL
+		}
+		if a.Keyless.Roots != "" {
+			Roots := a.Keyless.Roots
+			cp, err := loadCertPool([]byte(Roots))
+			if err != nil {
+				entryError = errors.Wrap(err, "failed to load Root certificates")
+			} else {
+				vo.RootCerts = cp
+			}
+		}
+		Issuer := a.Keyless.Issuer
+		vo.OIDCIssuer = Issuer
+		Subject := a.Keyless.Subject
+		vo.Signers = k8smanifest.SignerList{Subject}
+	}
+	if a.Repository != "" {
+		vo.ResourceBundleRef = a.Repository
+	}
+	return vo, subPath, entryError, envVariables
+}
+
+func cleanEnvVariables(envVariables []string) {
+	for _, ev := range envVariables {
+		os.Unsetenv(ev)
+	}
 }
 
 func addConfig(vo, defaultConfig *k8smanifest.VerifyResourceOption) *k8smanifest.VerifyResourceOption {
