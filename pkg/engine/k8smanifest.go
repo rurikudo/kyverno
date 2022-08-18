@@ -116,7 +116,7 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 	verifiedMsgs := []string{}
 	for i, attestorSet := range verifyRule.Attestors {
 		path := fmt.Sprintf(".attestors[%d]", i)
-		verified, reason, err := verifyAttestorSet(resource, attestorSet, vo, path, string(adreq.UID), logger)
+		verified, reason, err := verifyManifestAttestorSet(resource, attestorSet, vo, path, string(adreq.UID), logger)
 		if err != nil {
 			return verified, reason, err
 		}
@@ -130,7 +130,7 @@ func verifyManifest(policyContext *PolicyContext, verifyRule kyvernov1.Manifests
 	return true, msg, nil
 }
 
-func verifyAttestorSet(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSet,
+func verifyManifestAttestorSet(resource unstructured.Unstructured, attestorSet kyvernov1.AttestorSet,
 	vo *k8smanifest.VerifyResourceOption, path string, uid string, logger logr.Logger) (bool, string, error) {
 	verifiedCount := 0
 	attestorSet = expandStaticKeys(attestorSet)
@@ -150,13 +150,13 @@ func verifyAttestorSet(resource unstructured.Unstructured, attestorSet kyvernov1
 				entryError = errors.Wrapf(err, "failed to unmarshal nested attestor %s", attestorPath)
 			} else {
 				attestorPath += ".attestor"
-				verified, reason, err = verifyAttestorSet(resource, *nestedAttestorSet, vo, attestorPath, uid, logger)
+				verified, reason, err = verifyManifestAttestorSet(resource, *nestedAttestorSet, vo, attestorPath, uid, logger)
 				if err != nil {
 					entryError = errors.Wrapf(err, "failed to verify signature; %s", attestorPath)
 				}
 			}
 		} else {
-			verified, reason, entryError = verify(resource, a, vo, attestorPath, uid, i, logger)
+			verified, reason, entryError = k8sVerifyResource(resource, a, vo, attestorPath, uid, i, logger)
 		}
 
 		if entryError != nil {
@@ -190,7 +190,7 @@ func verifyAttestorSet(resource unstructured.Unstructured, attestorSet kyvernov1
 	return false, reason, nil
 }
 
-func verify(resource unstructured.Unstructured, a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOption,
+func k8sVerifyResource(resource unstructured.Unstructured, a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOption,
 	attestorPath, uid string, i int, logger logr.Logger) (bool, string, error) {
 	// check annotations
 	if a.Annotations != nil {
@@ -202,7 +202,7 @@ func verify(resource unstructured.Unstructured, a kyvernov1.Attestor, vo *k8sman
 	}
 
 	// build verify option
-	vo, subPath, err, envVariables := buildOptionsAndPath(a, vo, uid, i)
+	vo, subPath, err, envVariables := buildVerifyResourceOptionsAndPath(a, vo, uid, i)
 	// unset env variables after verification
 	defer cleanEnvVariables(envVariables)
 	if err != nil {
@@ -244,7 +244,7 @@ func verify(resource unstructured.Unstructured, a kyvernov1.Attestor, vo *k8sman
 	}
 }
 
-func buildOptionsAndPath(a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOption, uid string, i int) (*k8smanifest.VerifyResourceOption, string, error, []string) {
+func buildVerifyResourceOptionsAndPath(a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOption, uid string, i int) (*k8smanifest.VerifyResourceOption, string, error, []string) {
 	subPath := ""
 	var entryError error
 	envVariables := []string{}
@@ -256,7 +256,7 @@ func buildOptionsAndPath(a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOpt
 		if strings.HasPrefix(Key, "-----BEGIN PUBLIC KEY-----") || strings.HasPrefix(Key, "-----BEGIN PGP PUBLIC KEY BLOCK-----") {
 			// prepare env variable for pubkey
 			// it consists of admission request ID, key index and random num
-			pubkeyEnv := fmt.Sprintf("_PK_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807)) //MaxInt64
+			pubkeyEnv := fmt.Sprintf("_PK_%s_%d_%d", uid, i, rand.Int63())
 			err := os.Setenv(pubkeyEnv, Key)
 			envVariables = append(envVariables, pubkeyEnv)
 			if err != nil {
@@ -276,7 +276,7 @@ func buildOptionsAndPath(a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOpt
 		subPath = subPath + ".certificates"
 		if a.Certificates.Certificate != "" {
 			Cert := a.Certificates.Certificate
-			certEnv := fmt.Sprintf("_CERT_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807))
+			certEnv := fmt.Sprintf("_CERT_%s_%d_%d", uid, i, rand.Int63())
 			err := os.Setenv(certEnv, Cert)
 			envVariables = append(envVariables, certEnv)
 			if err != nil {
@@ -288,7 +288,7 @@ func buildOptionsAndPath(a kyvernov1.Attestor, vo *k8smanifest.VerifyResourceOpt
 		}
 		if a.Certificates.CertificateChain != "" {
 			CertChain := a.Certificates.CertificateChain
-			certChainEnv := fmt.Sprintf("_CC_%s_%d_%d", uid, i, rand.Int63n(9223372036854775807))
+			certChainEnv := fmt.Sprintf("_CC_%s_%d_%d", uid, i, rand.Int63())
 			err := os.Setenv(certChainEnv, CertChain)
 			envVariables = append(envVariables, certChainEnv)
 			if err != nil {
